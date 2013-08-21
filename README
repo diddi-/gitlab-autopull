@@ -1,0 +1,8 @@
+* Socket (libsocket-perl)
+* Net::HTTPServer (https://github.com/diddi-/Net-HTTPServer.git)
+    * URI (liburi-perl)
+    * IO::Socket::SSL (libio-socket-ssl-perl)
+* Config::Scoped (libconfig-scoped)
+* Proc::Daemon (libproc-daemon-perl)
+* JSON (libjson-perl)
+* threads (libthreads-perl)
