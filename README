@@ -1,3 +1,11 @@
+git-autopull
+
+This is a script that will run as a daemon and handle web hook POSTs sent by gitlabhq.
+The script will by default execute a git pull for repositories named in the config file.
+
+
+Required perl modules
+
 * Socket (libsocket-perl)
 * Net::HTTPServer (https://github.com/diddi-/Net-HTTPServer.git)
     * URI (liburi-perl)
