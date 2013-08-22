@@ -64,17 +64,21 @@ sub readConfig {
             exit(-1);
         }
 
-        if(not $rs->{'log'}) {
+
+    }
+
+    while(my($server, $settings) = each(%{$config->{'listen'}})) {
+
+        if(not $settings->{'log'}) {
             my $log = "/var/log/gitlab-autopull/access.log";
-            print "No log path set for $repo, using default $log\n";
-            $rs->{'log'} = $log;
+            print "No log path set for server $server, using default $log\n";
+            $settings->{'log'} = $log;
         }
 
-        if(not -d $rs->{'log'}) {
-            print $rs->{'log'}.": File or directory does not exist!\n";
+        if(not -f $settings->{'log'}) {
+            print $settings->{'log'}.": File or directory does not exist!\n";
             exit(-1);
         }
-
     }
 }
 
@@ -109,7 +113,7 @@ sub startServer {
     my $servername = shift;
     my $settings = shift;
 
-    print "Starting $servername...\n";
+    print "Starting $servername... ";
     my $s = Net::HTTPServer->new(
                                 port => $settings->{'port'},
                                 host => $settings->{'address'},
@@ -118,9 +122,10 @@ sub startServer {
                             );
     $s->RegisterURL("/", \&http_json);
     if($s->Start()) {
+        print "Done!\n";
         $s->Process();
     }else{
-        print "Could not start $servername...!\n";
+        print "Failed!\n";
     }
 
     return 0;
@@ -155,12 +160,11 @@ sub main {
 
     $conf_path = $ARGV[0] if $ARGV[0];
 
-    readConfig();
-
     my $pid = Proc::Daemon::Init();
     if($pid) {
         return 0;
     }
+    readConfig();
     initServers();
 
     return 0;
