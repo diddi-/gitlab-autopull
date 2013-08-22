@@ -9,6 +9,7 @@ use Proc::Daemon;
 use JSON;
 use File::stat;
 use threads;
+use Cwd;
 use Data::Dumper;
 
 my $daemon_run = 1;
@@ -17,10 +18,18 @@ my $config;
 
 $SIG{TERM} = sub { $daemon_run = 0 };
 
+sub logger {
+    my $lfd;
+    my $message = $_[0];
+    #open($lfd, '>>', './autopull.log');
+    print $message;
+    #close($lfd);
+}
+
 sub readConfig {
 
     if(not -f $conf_path) {
-        print "Unable to read $conf_path: No such file!\n";
+        logger("Unable to read $conf_path: No such file!\n");
         exit(-1);
     }
 
@@ -30,23 +39,23 @@ sub readConfig {
     my $filestat = stat($conf_path);
     my $filemode = sprintf("0%o", $filestat->mode & 07777);
     if($running_uid != $filestat->uid or $filemode ne "0600") {
-        print $conf_path.": Permissions must be 0600 (currently $filemode) and owned by the running user (uid $running_uid)\n";
+        logger($conf_path.": Permissions must be 0600 (currently $filemode) and owned by the running user (uid $running_uid)\n");
         exit(-1);
     }
 
-    print "Reading configuration $conf_path\n";
+    logger("Reading configuration $conf_path\n");
     my $cs = Config::Scoped->new(
         file    => $conf_path,
     );
 
     $config = $cs->parse;
     if(not $config) {
-        print "Unable to parse configuration file!\n";
+        logger("Unable to parse configuration file!\n");
         exit(-1);
     }
 
     if(not $config->{'repo'}) {
-        print "No repositories configured, my job here is done...!\n";
+        logger("No repositories configured, my job here is done...!\n");
         exit(0);
     }
 
@@ -57,10 +66,10 @@ sub readConfig {
 
         # Not sure if this should be a MUST, but it is for now.
         if(not $rs->{'workdir'}) {
-            print "You must specify a working directory!\n";
+            logger("You must specify a working directory!\n");
             exit(-1);
         }elsif(not -d $rs->{'workdir'}) {
-            print $rs->{'workdir'}.": Directory does not exist!\n";
+            logger($rs->{'workdir'}.": Directory does not exist!\n");
             exit(-1);
         }
 
@@ -71,12 +80,12 @@ sub readConfig {
 
         if(not $settings->{'log'}) {
             my $log = "/var/log/gitlab-autopull/access.log";
-            print "No log path set for server $server, using default $log\n";
+            logger("No log path set for server $server, using default $log\n");
             $settings->{'log'} = $log;
         }
 
         if(not -f $settings->{'log'}) {
-            print $settings->{'log'}.": File or directory does not exist!\n";
+            logger($settings->{'log'}.": File or directory does not exist!\n");
             exit(-1);
         }
     }
@@ -92,14 +101,13 @@ sub http_json {
     if($req->{'REQUEST'} =~ m/(\{.*\})/) {
         my $json_source = $1;
         $js = decode_json($json_source);
-        print Dumper($js);
     }
 
     while(my($repo, $repo_settings) = each(%{$config->{'repo'}})) {
         if($repo eq $js->{'repository'}->{'name'}) {
-            print "Executing \"".$repo_settings->{'cmd'}."\" for repo $repo\n";
+            logger("Executing \"".$repo_settings->{'cmd'}."\" for repo $repo\n");
             if(not chdir($repo_settings->{'workdir'})) {
-                print "Unable to change to workdir ".$repo_settings->{'workdir'}.": $!\n";
+                logger("Unable to change to workdir ".$repo_settings->{'workdir'}.": $!\n");
                 return $res;
             }
             system($repo_settings->{'cmd'});
@@ -113,7 +121,7 @@ sub startServer {
     my $servername = shift;
     my $settings = shift;
 
-    print "Starting $servername... ";
+    logger("Starting $servername... ");
     my $s = Net::HTTPServer->new(
                                 port => $settings->{'port'},
                                 host => $settings->{'address'},
@@ -122,10 +130,10 @@ sub startServer {
                             );
     $s->RegisterURL("/", \&http_json);
     if($s->Start()) {
-        print "Done!\n";
+        logger("Done!\n");
         $s->Process();
     }else{
-        print "Failed!\n";
+        logger("Failed!\n");
     }
 
     return 0;
@@ -139,6 +147,14 @@ sub initServers {
     }
 
     while($daemon_run) {
+        # Clean up.
+        foreach my $thr (threads->list(threads::joinable)) {
+            $thr->join();
+        }
+        if((threads->list(threads::running)) <= 0) {
+            $daemon_run = 0;
+            logger("Something bad happened, all servers are down!\n");
+        }
         sleep(1);
     }
 
@@ -157,14 +173,14 @@ sub initServers {
 }
 
 sub main {
-
     $conf_path = $ARGV[0] if $ARGV[0];
+    readConfig();
 
-    my $pid = Proc::Daemon::Init();
+    my $pid = Proc::Daemon::Init({work_dir => getcwd()});
     if($pid) {
+        print "Daemon PID $pid\n";
         return 0;
     }
-    readConfig();
     initServers();
 
     return 0;
