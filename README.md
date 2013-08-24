@@ -4,7 +4,8 @@ gitlab Auto Pull
 This is a script that will run as a daemon and handle web hook POSTs sent by gitlabhq.
 The script is completely stand-alone which means there is no requirement for web-servers like Apache or nginx.
 
-By default the script will execute a git pull for repositories defined in the configuration file.
+By default the script will execute a git pull for repositories defined in the configuration file but you can define
+any commands to be executed to a specific repository.
 
 Required perl modules
 -------------------------
@@ -33,6 +34,7 @@ To install gitlab-autopull, all you have to do is the following
 3. Copy gitlab-autopull to /etc/init.d/ if your system uses LSB Init scripts
 
 4. Configure your gitlab-autopull daemon (see below) and set a web hook destination in gitlabhq
+
 - Go to Settings -> Web Hooks and enter your destination (e.g. http://<ip>:<port>/) 
 
 Configuring gitlab-autopull
