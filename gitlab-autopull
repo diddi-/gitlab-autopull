@@ -14,7 +14,7 @@
 
 . /lib/lsb/init-functions
 
-GAD=/home/diddi/git/gitlab-autopull/git-autopull.pl
+GAD=/usr/local/bin/git-autopull.pl
 GAD_PID=/var/run/gitlab-autopull.pid
 
 # Are we running from init?
@@ -27,7 +27,7 @@ export PATH="${PATH:+$PATH:}/usr/sbin:/sbin"
 case "$1" in
   start)
 	log_daemon_msg "Starting Gitlab Autopull Daemon" "gitlab-autopull" || true
-	if start-stop-daemon --start --quiet --oknodo --pidfile /var/run/sshd.pid --exec $GAD; then
+	if start-stop-daemon --start --quiet --oknodo --pidfile $GAD_PID --exec $GAD; then
 	    log_end_msg 0 || true
 	else
 	    log_end_msg 1 || true
@@ -35,7 +35,7 @@ case "$1" in
 	;;
   stop)
 	log_daemon_msg "Stopping Gitlab Autopull Daemon" "gitlab-autopull"|| true
-	if start-stop-daemon --stop --quiet --oknodo --pidfile /var/run/gitlab-autopull.pid; then
+	if start-stop-daemon --stop --quiet --oknodo --pidfile $GAD_PID; then
 	    log_end_msg 0 || true
 	else
 	    log_end_msg 1 || true

@@ -16,7 +16,28 @@ my $daemon_run = 1;
 my $conf_path = "/etc/git-autopull.conf";
 my $config;
 
-$SIG{TERM} = sub { $daemon_run = 0 };
+$SIG{TERM} = "daemon_shutdown";
+
+sub daemon_shutdown {
+    $daemon_run = 0;
+    logger("Received signal to shutdown, cleaning up!\n");
+
+    logger("Killing ".threads->list(threads::running)." server threads...\n");
+    foreach my $thr (threads->list(threads::running)) {
+        $thr->kill('USR1');
+    }
+    
+    while(threads->list(threads::running) or threads->list(threads::joinable)) {
+        # Clean up.
+        logger("Joining ".threads->list(threads::joinable)." server threads\n");
+        foreach my $thr (threads->list(threads::joinable)) {
+            $thr->join();
+        }
+        sleep(1);
+    }
+
+    exit(0);
+}
 
 sub logger {
     my $lfd;
@@ -43,7 +64,7 @@ sub readConfig {
         exit(-1);
     }
 
-    logger("Reading configuration $conf_path\n");
+    #logger("Reading configuration $conf_path\n");
     my $cs = Config::Scoped->new(
         file    => $conf_path,
     );
@@ -52,6 +73,10 @@ sub readConfig {
     if(not $config) {
         logger("Unable to parse configuration file!\n");
         exit(-1);
+    }
+
+    if(not $config->{'pid_file'}) {
+        $config->{'pid_file'} = "/var/run/gitlab-autopull.pid";
     }
 
     if(not $config->{'repo'}) {
@@ -72,8 +97,6 @@ sub readConfig {
             logger($rs->{'workdir'}.": Directory does not exist!\n");
             exit(-1);
         }
-
-
     }
 
     while(my($server, $settings) = each(%{$config->{'listen'}})) {
@@ -120,6 +143,7 @@ sub http_json {
 sub startServer {
     my $servername = shift;
     my $settings = shift;
+    my $server_run = 1;
 
     logger("Starting $servername... ");
     my $s = Net::HTTPServer->new(
@@ -129,13 +153,19 @@ sub startServer {
                                 log  => $settings->{'log'},
                             );
     $s->RegisterURL("/", \&http_json);
+    $SIG{'USR1'} = sub {$server_run = 0;};
+
     if($s->Start()) {
         logger("Done!\n");
-        $s->Process();
+        while($server_run) {
+            $s->Process(1);
+        }
     }else{
         logger("Failed!\n");
     }
 
+    logger("Shutting down $servername!\n");
+    $s->Stop();
     return 0;
 }
 
@@ -152,23 +182,13 @@ sub initServers {
             $thr->join();
         }
         if((threads->list(threads::running)) <= 0) {
-            $daemon_run = 0;
             logger("Something bad happened, all servers are down!\n");
+            daemon_shutdown();
         }
         sleep(1);
     }
 
-    # Clean up.
-    foreach my $thr (threads->list(threads::joinable)) {
-        $thr->join();
-    }
-
-    # Rather ugly(?) way of letting our threads go
-    # so we don't get errors when exiting the program.
-    foreach my $thr (threads->list(threads::running)) {
-        $thr->detach();
-    }
-
+    daemon_shutdown();
     return 0;
 }
 
@@ -176,9 +196,8 @@ sub main {
     $conf_path = $ARGV[0] if $ARGV[0];
     readConfig();
 
-    my $pid = Proc::Daemon::Init({work_dir => getcwd()});
+    my $pid = Proc::Daemon::Init({work_dir => getcwd(), pid_file => $config->{'pid_file'}});
     if($pid) {
-        print "Daemon PID $pid\n";
         return 0;
     }
     initServers();
