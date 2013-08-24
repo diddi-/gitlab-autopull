@@ -112,9 +112,10 @@ sub readConfig {
             exit(-1);
         }
 
-        if(($settings->{'ssl_cert_file'} and not $settings->{'ssl_key_file'})
-                or ($settings->{'ssl_key_file'} and not $settings->{'ssl_cert_file'})) {
-            logger("Both ssl_cert_file and ssl_key_file are needed for SSL support!\n");
+        if(($settings->{'ssl_cert_file'} and (not $settings->{'ssl_key_file'} or not $settings->{'ssl_ca_file'}))
+                or ($settings->{'ssl_key_file'} and (not $settings->{'ssl_cert_file'} or not $settings->{'ssl_ca_file'}))
+                or ($settings->{'ssl_ca_file'} and (not $settings->{'ssl_cert_file'} or not $settings->{'ssl_key_file'}))) {
+            logger("ssl_cert_file, ssl_key_file and ssl_ca_file are needed for SSL support!\n");
             exit(-1);
         }
 
@@ -125,6 +126,11 @@ sub readConfig {
 
         if($settings->{'ssl_key_file'} and not -f $settings->{'ssl_key_file'}) {
             logger($settings->{'ssl_key_file'}.": No such file!\n");
+            exit(-1);
+        }
+
+        if($settings->{'ssl_ca_file'} and not -f $settings->{'ssl_ca_file'}) {
+            logger($settings->{'ssl_ca_file'}.": No such file!\n");;
             exit(-1);
         }
 
@@ -171,8 +177,10 @@ sub startServer {
                                 host => $settings->{'host'},
                                 type => 'forking',
                                 log  => $settings->{'log'},
+                                ssl  => 1,
                                 ssl_cert_file => $settings->{'ssl_cert_file'},
                                 ssl_key_file  => $settings->{'ssl_key_file'},
+                                ssl_ca_file   => $settings->{'ssl_ca_file'},
                             );
     }else{
         $s = Net::HTTPServer->new(
