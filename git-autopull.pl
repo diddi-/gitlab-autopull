@@ -178,9 +178,9 @@ sub startServer {
                                 type => 'forking',
                                 log  => $settings->{'log'},
                                 ssl  => 1,
-                                ssl_cert_file => $settings->{'ssl_cert_file'},
-                                ssl_key_file  => $settings->{'ssl_key_file'},
-                                ssl_ca_file   => $settings->{'ssl_ca_file'},
+                                ssl_cert => $settings->{'ssl_cert_file'},
+                                ssl_key  => $settings->{'ssl_key_file'},
+                                ssl_ca   => $settings->{'ssl_ca_file'},
                             );
     }else{
         $s = Net::HTTPServer->new(
