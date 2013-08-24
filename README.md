@@ -35,7 +35,7 @@ To install gitlab-autopull, all you have to do is the following
 
 4. Configure your gitlab-autopull daemon (see below) and set a web hook destination in gitlabhq
 
-- Go to Settings -> Web Hooks and enter your destination (e.g. http://<ip>:<port>/) 
+- Go to Settings -> Web Hooks and enter your destination (e.g. http://IP:PORT/) 
 
 Configuring gitlab-autopull
 ------------------------------------
