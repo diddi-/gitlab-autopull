@@ -111,6 +111,29 @@ sub readConfig {
             logger($settings->{'log'}.": File or directory does not exist!\n");
             exit(-1);
         }
+
+        if(($settings->{'ssl_cert_file'} and (not $settings->{'ssl_key_file'} or not $settings->{'ssl_ca_file'}))
+                or ($settings->{'ssl_key_file'} and (not $settings->{'ssl_cert_file'} or not $settings->{'ssl_ca_file'}))
+                or ($settings->{'ssl_ca_file'} and (not $settings->{'ssl_cert_file'} or not $settings->{'ssl_key_file'}))) {
+            logger("ssl_cert_file, ssl_key_file and ssl_ca_file are needed for SSL support!\n");
+            exit(-1);
+        }
+
+        if($settings->{'ssl_cert_file'} and not -f $settings->{'ssl_cert_file'}) {
+            logger($settings->{'ssl_cert_file'}.": No such file!\n");
+            exit(-1);
+        }
+
+        if($settings->{'ssl_key_file'} and not -f $settings->{'ssl_key_file'}) {
+            logger($settings->{'ssl_key_file'}.": No such file!\n");
+            exit(-1);
+        }
+
+        if($settings->{'ssl_ca_file'} and not -f $settings->{'ssl_ca_file'}) {
+            logger($settings->{'ssl_ca_file'}.": No such file!\n");;
+            exit(-1);
+        }
+
     }
 }
 
@@ -144,14 +167,29 @@ sub startServer {
     my $servername = shift;
     my $settings = shift;
     my $server_run = 1;
+    my $s;
 
     logger("Starting $servername... ");
-    my $s = Net::HTTPServer->new(
+
+    if($settings->{'ssl_cert_file'} and $settings->{'ssl_key_file'}) {
+        $s = Net::HTTPServer->new(
+                                port => $settings->{'port'},
+                                host => $settings->{'host'},
+                                type => 'forking',
+                                log  => $settings->{'log'},
+                                ssl  => 1,
+                                ssl_cert => $settings->{'ssl_cert_file'},
+                                ssl_key  => $settings->{'ssl_key_file'},
+                                ssl_ca   => $settings->{'ssl_ca_file'},
+                            );
+    }else{
+        $s = Net::HTTPServer->new(
                                 port => $settings->{'port'},
                                 host => $settings->{'address'},
                                 type => 'forking',
                                 log  => $settings->{'log'},
                             );
+    }
     $s->RegisterURL("/", \&http_json);
     $SIG{'USR1'} = sub {$server_run = 0;};
 
