@@ -42,9 +42,13 @@ sub daemon_shutdown {
 sub logger {
     my $lfd;
     my $message = $_[0];
-    #open($lfd, '>>', './autopull.log');
-    print $message;
-    #close($lfd);
+    if(defined $config->{'log_file'} and -f $config->{'log_file'}) {
+        open($lfd, '>>', $config->{'log_file'});
+        print $lfd $message;
+        close($lfd);
+    }else{
+        print $message;
+    }
 }
 
 sub readConfig {
@@ -64,7 +68,7 @@ sub readConfig {
         exit(-1);
     }
 
-    #logger("Reading configuration $conf_path\n");
+    logger("Reading configuration $conf_path\n");
     my $cs = Config::Scoped->new(
         file    => $conf_path,
     );
