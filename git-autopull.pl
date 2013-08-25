@@ -84,10 +84,8 @@ sub readConfig {
         exit(-1);
     }
 
-    while(my ($key, $value) = each($config->{'global'})) {
-       if(not $key->{'pid_file'}) {
-          $key->{'pid_file'} = "/var/run/gitlab-autopull.pid";
-       }
+    if(not $config->{'global'}->{'pid_file'}) {
+        $config->{'global'}->{'pid_file'} = "/var/run/gitlab-autopull.pid";
     }
 
     if(not $config->{'repo'}) {
