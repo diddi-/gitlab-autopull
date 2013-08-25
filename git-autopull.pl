@@ -106,6 +106,10 @@ sub readConfig {
             logger($rs->{'workdir'}.": Directory does not exist!\n");
             exit(-1);
         }
+
+        if(not $rs->{'branch'}) {
+            $rs->{'branch'} = "master";
+        }
     }
 
     while(my($server, $settings) = each(%{$config->{'listen'}})) {
@@ -159,8 +163,10 @@ sub http_json {
     }
 
     while(my($repo, $repo_settings) = each(%{$config->{'repo'}})) {
-        if($repo eq $js->{'repository'}->{'name'}) {
-            logger("Executing \"".$repo_settings->{'cmd'}."\" for repo $repo\n");
+        my $branch = (split('/',$js->{'ref'}))[2];
+
+        if($repo eq $js->{'repository'}->{'name'} and $repo_settings->{'branch'} eq $branch) {
+            logger("Executing \"".$repo_settings->{'cmd'}."\" for repo $repo branch $branch\n");
             if(not chdir($repo_settings->{'workdir'})) {
                 logger("Unable to change to workdir ".$repo_settings->{'workdir'}.": $!\n");
                 return $res;
