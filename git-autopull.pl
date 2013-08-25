@@ -42,8 +42,8 @@ sub daemon_shutdown {
 sub logger {
     my $lfd;
     my $message = $_[0];
-    if(defined $config->{'log_file'} and -f $config->{'log_file'}) {
-        open($lfd, '>>', $config->{'log_file'});
+    if(defined $config->{'global'}->{'log_file'} and -f $config->{'global'}->{'log_file'}) {
+        open($lfd, '>>', $config->{'global'}->{'log_file'});
         print $lfd $message;
         close($lfd);
     }else{
@@ -79,8 +79,15 @@ sub readConfig {
         exit(-1);
     }
 
-    if(not $config->{'pid_file'}) {
-        $config->{'pid_file'} = "/var/run/gitlab-autopull.pid";
+    if(not $config->{'global'}) {
+        logger("No global configuration definitions found!\n");
+        exit(-1);
+    }
+
+    while(my ($key, $value) = each($config->{'global'})) {
+       if(not $key->{'pid_file'}) {
+          $key->{'pid_file'} = "/var/run/gitlab-autopull.pid";
+       }
     }
 
     if(not $config->{'repo'}) {
@@ -238,7 +245,7 @@ sub main {
     $conf_path = $ARGV[0] if $ARGV[0];
     readConfig();
 
-    my $pid = Proc::Daemon::Init({work_dir => getcwd(), pid_file => $config->{'pid_file'}});
+    my $pid = Proc::Daemon::Init({work_dir => getcwd(), pid_file => $config->{'global'}->{'pid_file'}});
     if($pid) {
         return 0;
     }
